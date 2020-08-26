@@ -15,7 +15,6 @@ using BasicApp.Models;
 using BasicApp.Services;
 using BasicApp.ViewModels;
 using BasicApp.Views;
-using DesktopNotifications;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -43,15 +42,17 @@ namespace BasicApp
         private async void OnStartup(object sender, StartupEventArgs e)
         {
             // Read more about sending local toast notifications from desktop C# apps
-            // https://docs.microsoft.com/windows/uwp/design/shell/tiles-and-notifications/send-local-toast-desktop
-            //
-            // Register AUMID, COM server, and activator
-            //DesktopNotificationManagerCompat.RegisterAumidAndComServer<ToastNotificationActivator>("mvega.BasicApp.20200817");
-            //DesktopNotificationManagerCompat.RegisterActivator<ToastNotificationActivator>();
-            DesktopNotifications.DesktopNotificationManagerCompat.RegisterApplication(
-                aumid: "BasicApp",
-                displayName: "BasicApp",
-                iconPath: "C:\\icon.png");
+            // https://docs.microsoft.com/windows/uwp/design/shell/tiles-and-notifications/send-local-toast
+            DesktopNotificationManagerCompat.OnActivated += (toastArgs) =>
+            {
+                Current.Dispatcher.Invoke(async () =>
+                {
+                    var app = Current as App;
+                    var config = app.GetService<IConfiguration>();
+                    config[ToastNotificationActivationHandler.ActivationArguments] = toastArgs.Argument;
+                    await app.StartAsync();
+                });
+            };
 
             // TODO: Register arguments you want to use on App initialization
             var activationArgs = new Dictionary<string, string>
@@ -71,7 +72,7 @@ namespace BasicApp
                     .ConfigureServices(ConfigureServices)
                     .Build();
 
-            if (e.Args.Contains(DesktopNotificationManagerCompat.TOAST_ACTIVATED_LAUNCH_ARG))
+            if (DesktopNotificationManagerCompat.WasCurrentProcessToastActivated())
             {
                 // ToastNotificationActivator code will run after this completes and will show a window if necessary.
                 return;
